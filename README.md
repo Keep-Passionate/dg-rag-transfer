@@ -75,7 +75,16 @@ bash run_pilot.sh 50
 另开终端看弹幕：`tail -f /root/autodl-tmp/graphrag_smoke.log`（或 `graphrag_run_25.log`）。
 
 ## 当前状态（2026-07-01）
-- ✅ 复用链勘查、脚手架、驱动、配置补丁、run 脚本全部写好并推到 GitHub（本地已 py 编译校验）。
-- ✅ 数据在位：25/50 篇子集 PDF/qa + 229 个 content_list 均在服务器（无需换服务器/重下数据）。
-- ⏳ 服务器：新建 `graphrag` 环境 `pip install graphrag`；`smoke` 是首次真实验证（首跑若报 GraphRAG
-  版本/配置差异，据报即修）。跑完把 `compare_graphrag.py` 的输出贴回，回填本 README 与论文素材。
+- ✅ **SMOKE 打通**（GraphRAG 3.1.0，2 篇 6 题）：`graphrag_base 0/6=0.0%` → `graphrag_dg 5/6=83.3%`，
+  配对 dg 净增 +5（独对5/独错0，McNemar p=0.0625，样本小不显著但方向对）。**DG meta 增益在 GraphRAG 骨干复现**。
+- ✅ 全链验证：build_input → `graphrag index`(qwen) → `graphrag query` base/dg → 评测器判分 → compare。
+- ⏳ 正在跑 `run_pilot.sh 25`（23 篇需新建索引，~1–2h；大/敏感文档可能内容审查失败被跳过）→ 出稳定数字+显著性。
+
+### GraphRAG 3.1.0 踩坑备忘（都已在代码/脚本中处理）
+1. litellm 启动联网拉价目表 → 国内卡死：`LITELLM_LOCAL_MODEL_COST_MAP=True`。
+2. tiktoken 下编码文件被墙：预缓存 + 固定 `TIKTOKEN_CACHE_DIR`。
+3. `graphrag init` 交互式问模型：`--model qwen-plus --embedding text-embedding-v3` + 喂空行 stdin。
+4. settings 新 schema `completion_models:/embedding_models:`（非 2.x 的 `models:`），默认无 `api_base` → patch 注入百炼端点。
+5. `graphrag query` 问题是**位置参数**（非 `--query`）；`--method local`；`--response-type` 设简洁。
+6. `DG_CORE_DIR` 认准 `rag-L1/reproduce`（最终版 dg_core）；env.sh 自愈错值；驱动也自解析不依赖 env 传递。
+7. 拉代码开学术加速、跑查询关加速（查询走百炼）。评测器用 `rag` 环境 python（依赖 lightrag）。
