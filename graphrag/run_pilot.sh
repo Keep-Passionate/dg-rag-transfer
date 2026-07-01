@@ -12,4 +12,5 @@ echo "==== 跑 $N 篇（manifest=$MAN）——弹幕另开终端： tail -f $LOG
 python run_graphrag_docbench.py --manifest "$MAN" --method local 2>&1 | tee "$LOG"
 
 echo ""
-bash run_eval_compare.sh "$MAN"
+# 评测+对比也 tee 进日志（否则 nohup 时这段输出会丢，看着像"卡住"）
+bash run_eval_compare.sh "$MAN" 2>&1 | tee -a "$LOG"
