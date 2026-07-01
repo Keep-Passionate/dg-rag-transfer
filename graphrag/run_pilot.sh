@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 试点：跑 N 篇（25 或 50）→ 评测 → 对比。可续跑（已建索引/已出结果的篇自动跳过）。
 # 用法：source env.sh 后  bash run_pilot.sh 25   （或 50）
-set -e
+set -eo pipefail          # 驱动失败即停，不再往下刷评测/对比的连带报错
 cd "$(dirname "$0")"
 : "${GRAPHRAG_API_KEY:?先 export DASHSCOPE_API_KEY 并 source env.sh}"
 N="${1:-25}"

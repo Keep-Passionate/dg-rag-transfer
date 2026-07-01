@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SMOKE：top25 前 2 篇，打通 建输入→索引→查询→评测→对比 全链（花几毛钱验证接线）。
 # 用法：source env.sh 后  bash run_smoke.sh
-set -e
+set -eo pipefail          # 驱动失败即停，不再往下刷评测/对比的连带报错
 cd "$(dirname "$0")"
 : "${GRAPHRAG_API_KEY:?先 export DASHSCOPE_API_KEY 并 source env.sh}"
 

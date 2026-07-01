@@ -33,6 +33,18 @@ os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
 os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
 HERE = Path(__file__).resolve().parent
+
+# 接地层(dg_core)目录：不依赖 env.sh 的导出/子进程继承（那条链太脆，断了就回退 Windows 默认路径必崩）。
+# 这里自己解析：DG_CORE_DIR 环境变量优先，否则用服务器已知最终版路径；找不到就明确报错。
+_DG_CANDIDATES = [os.getenv("DG_CORE_DIR", ""), "/root/autodl-tmp/rag-L1/reproduce"]
+DG_CORE_DIR = next((p for p in _DG_CANDIDATES if p and (Path(p) / "dg_core.py").exists()), "")
+if not DG_CORE_DIR:
+    sys.exit("!! 找不到 dg_core.py。请 export DG_CORE_DIR=<含 dg_core.py 的 reproduce 目录>。"
+             f"已尝试: {[p for p in _DG_CANDIDATES if p]}")
+os.environ["DG_CORE_DIR"] = DG_CORE_DIR            # 供 dg_augmenter/dg_core 内部读取，保持一致
+sys.path.insert(0, DG_CORE_DIR)
+print(f"[dg_core] 使用接地层目录: {DG_CORE_DIR}", flush=True)
+
 sys.path.insert(0, str(HERE))            # build_input
 sys.path.insert(0, str(HERE.parent))     # dg_augmenter
 import build_input  # noqa: E402
