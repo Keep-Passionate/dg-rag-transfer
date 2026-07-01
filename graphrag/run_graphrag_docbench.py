@@ -27,6 +27,11 @@ import sys
 import time
 from pathlib import Path
 
+# GraphRAG 3.x 经 litellm 调模型；litellm 启动默认联网拉 GitHub 价目表，国内会卡死。
+# 子进程继承本进程环境，这里兜底设一遍（env.sh 里也有，双保险）。
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))            # build_input
 sys.path.insert(0, str(HERE.parent))     # dg_augmenter

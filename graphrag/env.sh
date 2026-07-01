@@ -6,6 +6,12 @@
 export GRAPHRAG_API_KEY="$DASHSCOPE_API_KEY"                    # GraphRAG settings.yaml 用 ${GRAPHRAG_API_KEY}
 export DASHSCOPE_BASE="https://dashscope.aliyuncs.com/compatible-mode/v1"
 
+# ★关键★ GraphRAG 3.x 用 litellm；litellm 启动会去 GitHub 拉模型价目表，国内关了学术加速会无限卡。
+# 强制用本地自带价目表、不联网。缺了这个，graphrag init/index/query 全都会卡死。
+export LITELLM_LOCAL_MODEL_COST_MAP="True"
+export HF_HUB_DISABLE_TELEMETRY=1
+export TOKENIZERS_PARALLELISM=false
+
 # 主仓 reproduce 目录（dg_core.py + llm_answer_evaluator.py 所在）——自动探测，探不到请手动改。
 export DG_CORE_DIR="${DG_CORE_DIR:-$(dirname "$(find /root -name dg_core.py 2>/dev/null | head -1)")}"
 # 评测器依赖 lightrag/pandas，须用主实验 rag 环境的 python。
