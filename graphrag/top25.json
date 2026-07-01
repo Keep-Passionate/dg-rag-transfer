@@ -1,0 +1,32 @@
+{
+  "note": "GraphRAG 迁移试点固定 25 篇（DocBench meta 题数降序 top-25，与 dg-rag 主实验共用同一子集选择逻辑）。meta 题合计 53。",
+  "source": "reproduce/graphrag_migration/meta_subset_manifest.json 前 25 条",
+  "total_meta_questions": 53,
+  "docs": [
+    {"doc_id": "0",   "pdf": "P19-1598.pdf",                                                                                          "meta_questions": 3},
+    {"doc_id": "102", "pdf": "FBS_CDP_Public.pdf",                                                                                    "meta_questions": 3},
+    {"doc_id": "119", "pdf": "FBS_OBO_27APR2023v2_PUBLIC.pdf",                                                                        "meta_questions": 3},
+    {"doc_id": "2",   "pdf": "P19-1164.pdf",                                                                                          "meta_questions": 2},
+    {"doc_id": "3",   "pdf": "D19-1539.pdf",                                                                                          "meta_questions": 2},
+    {"doc_id": "11",  "pdf": "D18-1360.pdf",                                                                                          "meta_questions": 2},
+    {"doc_id": "15",  "pdf": "P18-1125.pdf",                                                                                          "meta_questions": 2},
+    {"doc_id": "32",  "pdf": "N18-1187.pdf",                                                                                          "meta_questions": 2},
+    {"doc_id": "52",  "pdf": "NYSE_PG_2022.pdf",                                                                                      "meta_questions": 2},
+    {"doc_id": "54",  "pdf": "NYSE_NVS_2021.pdf",                                                                                     "meta_questions": 2},
+    {"doc_id": "59",  "pdf": "NYSE_PEP_2020.pdf",                                                                                     "meta_questions": 2},
+    {"doc_id": "69",  "pdf": "NYSE_WFC_2021.pdf",                                                                                     "meta_questions": 2},
+    {"doc_id": "77",  "pdf": "NYSE_MCD_2020.pdf",                                                                                     "meta_questions": 2},
+    {"doc_id": "85",  "pdf": "ASX_AJY_2020.pdf",                                                                                      "meta_questions": 2},
+    {"doc_id": "86",  "pdf": "NYSE_ACN_2020.pdf",                                                                                     "meta_questions": 2},
+    {"doc_id": "91",  "pdf": "FY-2020-Agency-Financial-Report.pdf",                                                                   "meta_questions": 2},
+    {"doc_id": "92",  "pdf": "DoS-Geospatial-Data-Strategy_Digital-Version_Accessible-9162021-with-Signature-page_Accessible-9222021.pdf", "meta_questions": 2},
+    {"doc_id": "100", "pdf": "Reference-EDS-Accessible.pdf",                                                                          "meta_questions": 2},
+    {"doc_id": "108", "pdf": "FBS_PM_29NOV2023_Public.pdf",                                                                           "meta_questions": 2},
+    {"doc_id": "109", "pdf": "JRS-EAP-Asia_06JAN2023_Public.pdf",                                                                     "meta_questions": 2},
+    {"doc_id": "110", "pdf": "Country_Reports_on_Terrorism_2020.pdf",                                                                 "meta_questions": 2},
+    {"doc_id": "111", "pdf": "FBS_L_27JAN2022_PUBLIC-1.pdf",                                                                          "meta_questions": 2},
+    {"doc_id": "112", "pdf": "FBS_ISN_Public.pdf",                                                                                   "meta_questions": 2},
+    {"doc_id": "113", "pdf": "FBS_INL_Public.pdf",                                                                                   "meta_questions": 2},
+    {"doc_id": "114", "pdf": "DOS-FY2023-Agency-Financial-Report-508.pdf",                                                            "meta_questions": 2}
+  ]
+}

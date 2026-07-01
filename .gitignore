@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 密钥/环境（绝不入库）
+.env
+*.key
+
+# GraphRAG 每篇索引产物（在服务器 /root/autodl-tmp 下，勿入库）
+graphrag_runs/
+**/output/
+**/cache/
+**/lancedb/
+*.parquet
+*.log
+
+# 评测/结果中间产物
+llm_evaluation_results*.json
+qa_results_*.json
+scratch/
