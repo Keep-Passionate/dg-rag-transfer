@@ -51,7 +51,12 @@ import build_input  # noqa: E402
 import dg_augmenter  # noqa: E402
 
 RESP_RE = re.compile(r"(?:Local|Global|Basic|DRIFT)\s+Search\s+Response:\s*", re.I)
-LOG_RE = re.compile(r"^\s*(INFO|SUCCESS|WARNING|WARN|ERROR|DEBUG)\b")
+# 滤掉日志噪声：级别前缀行、litellm 那两行 warning、以及形如 "17:23:35 - ..." 的时间戳日志行
+LOG_RE = re.compile(r"^\s*(INFO|SUCCESS|WARNING|WARN|ERROR|DEBUG)\b|LiteLLM|^\d{1,2}:\d{2}:\d{2}\b")
+
+# meta 题金标多为短答案（人名/页码/计数）。默认让 GraphRAG 简洁作答（base/dg 同等施加，公平）。
+RESPONSE_TYPE = ("Single short sentence; if the answer is a name, number, date, or page, "
+                 "give only that value.")
 
 
 def log(msg):
@@ -130,9 +135,10 @@ def ensure_index(root, pdf, doc_id, content_lists, reindex):
     return ok
 
 
-def graphrag_query(root, method, q):
+def graphrag_query(root, method, q, response_type=RESPONSE_TYPE):
     # GraphRAG 3.x：问题是**位置参数**，不是 --query。用法 `graphrag query --root X --method local "问题"`。
-    r = subprocess.run(["graphrag", "query", "--root", str(root), "--method", method, q],
+    r = subprocess.run(["graphrag", "query", "--root", str(root), "--method", method,
+                        "--response-type", response_type, q],
                        capture_output=True, text=True)
     if r.returncode != 0:
         # 不再静默返回空：把失败原因打出来（内容审查/认证/参数等），便于定位。
@@ -168,7 +174,8 @@ def main():
     ap.add_argument("--manifest", default=str(HERE / "top25.json"))
     ap.add_argument("--docs", default="", help="逗号分隔 doc_id，覆盖 manifest")
     ap.add_argument("--limit", type=int, default=0, help="只取前 N 篇（smoke 用）")
-    ap.add_argument("--method", default="local", choices=["local", "global", "basic"])
+    ap.add_argument("--method", default="local", choices=["local", "global", "basic", "drift"])
+    ap.add_argument("--response-type", default=RESPONSE_TYPE, help="GraphRAG --response-type（简洁作答）")
     ap.add_argument("--docbench", default=os.getenv("DOCBENCH_ROOT", "/root/autodl-tmp/DocBench_subset"))
     ap.add_argument("--content-lists", default=os.getenv("PARSE_OUTPUT_DIR", "/root/autodl-tmp/content_lists"))
     ap.add_argument("--runs", default=os.getenv("GRAPHRAG_RUNS", "/root/autodl-tmp/graphrag_runs"))
@@ -214,13 +221,13 @@ def main():
         for j, item in enumerate(qs, 1):
             q, gold = item["question"], item["answer"]
             stats["meta_q"] += 1
-            base = graphrag_query(root, a.method, q)
+            base = graphrag_query(root, a.method, q, a.response_type)
             aug_q, meta = dg_augmenter.augment(q, pdf)
             if aug_q == q:
                 dg = base
             else:
                 stats["dg_fire"] += 1
-                dg = graphrag_query(root, a.method, aug_q)
+                dg = graphrag_query(root, a.method, aug_q, a.response_type)
             base_recs.append({"question": q, "answer": base, "correct_answer": gold})
             dg_recs.append({"question": q, "answer": dg, "correct_answer": gold,
                             "dg_used": meta.get("dg_used"), "dg_kind": meta.get("dg_kind")})
