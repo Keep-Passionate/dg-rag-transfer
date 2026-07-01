@@ -90,8 +90,11 @@ def ensure_index(root, pdf, doc_id, content_lists, reindex):
         return True
     root.mkdir(parents=True, exist_ok=True)
     # 1) graphrag init（生成默认 settings.yaml + prompts + .env）
-    subprocess.run(["graphrag", "init", "--root", str(root), "--force"],
-                   check=False, capture_output=True, text=True)
+    # GraphRAG 3.x 的 init 交互式追问 chat/embedding 模型名——用 --model/--embedding 直接给定，
+    # 并喂空行到 stdin，确保非交互、不卡在提示符（patch_settings 随后还会强制覆盖）。
+    subprocess.run(["graphrag", "init", "--root", str(root), "--force",
+                    "--model", "qwen-plus", "--embedding", "text-embedding-v3"],
+                   check=False, capture_output=True, text=True, input="\n" * 10)
     # 2) patch 成 qwen/dashscope
     r = subprocess.run([sys.executable, str(HERE / "patch_settings.py"), str(root / "settings.yaml")],
                        capture_output=True, text=True)
