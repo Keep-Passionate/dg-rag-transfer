@@ -16,8 +16,10 @@ export TOKENIZERS_PARALLELISM=false
 export TIKTOKEN_CACHE_DIR="${TIKTOKEN_CACHE_DIR:-/root/autodl-tmp/.tiktoken_cache}"
 mkdir -p "$TIKTOKEN_CACHE_DIR"
 
-# 主仓 reproduce 目录（dg_core.py + llm_answer_evaluator.py 所在）——自动探测，探不到请手动改。
-export DG_CORE_DIR="${DG_CORE_DIR:-$(dirname "$(find /root -name dg_core.py 2>/dev/null | head -1)")}"
+# dg_core.py + llm_answer_evaluator.py 所在（接地层 + 评测器）。
+# 服务器实测最终版在 rag-L1/reproduce（分支 feat/dg-core-coverage，dg_core.py=44008B）；
+# 注意 RAG-Anything-thesis 在 main 分支、没有 reproduce/dg_core。换机器请覆盖 DG_CORE_DIR。
+export DG_CORE_DIR="${DG_CORE_DIR:-/root/autodl-tmp/rag-L1/reproduce}"
 # 评测器依赖 lightrag/pandas，须用主实验 rag 环境的 python。
 export EVAL_PY="${EVAL_PY:-/root/miniconda3/envs/rag/bin/python}"
 
