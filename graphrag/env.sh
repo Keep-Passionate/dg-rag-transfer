@@ -11,6 +11,10 @@ export DASHSCOPE_BASE="https://dashscope.aliyuncs.com/compatible-mode/v1"
 export LITELLM_LOCAL_MODEL_COST_MAP="True"
 export HF_HUB_DISABLE_TELEMETRY=1
 export TOKENIZERS_PARALLELISM=false
+# tiktoken 首次会联网下编码文件（openaipublic.blob，被墙）。固定缓存目录；请在学术加速开着时预下载一次：
+#   source /etc/network_turbo && python -c "import tiktoken; tiktoken.get_encoding('cl100k_base'); tiktoken.get_encoding('o200k_base')"
+export TIKTOKEN_CACHE_DIR="${TIKTOKEN_CACHE_DIR:-/root/autodl-tmp/.tiktoken_cache}"
+mkdir -p "$TIKTOKEN_CACHE_DIR"
 
 # 主仓 reproduce 目录（dg_core.py + llm_answer_evaluator.py 所在）——自动探测，探不到请手动改。
 export DG_CORE_DIR="${DG_CORE_DIR:-$(dirname "$(find /root -name dg_core.py 2>/dev/null | head -1)")}"
