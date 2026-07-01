@@ -53,6 +53,14 @@ def main(path):
         print("!! 未识别 settings schema（无 completion_models/embedding_models/models）——把 settings.yaml 贴回")
         sys.exit(2)
 
+    # 百炼 text-embedding-v3 的 OpenAI 兼容端点：单批 contents 上限 10，超了报 400 InvalidParameter
+    # ("batch size ... not larger than 10")→嵌入步失败、整篇索引挂。这里把嵌入批大小压到 10。
+    et = cfg.get("embed_text")
+    if not isinstance(et, dict):
+        et = {}
+        cfg["embed_text"] = et
+    et["batch_size"] = 10
+
     with open(path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
     print(f"patched: {path}  chat={CHAT} embed={EMBED} api_base={BASE}")

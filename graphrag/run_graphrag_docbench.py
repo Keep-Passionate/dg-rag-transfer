@@ -96,8 +96,13 @@ def parse_answer(stdout):
 
 
 def index_ready(root):
+    # 完整索引才算就绪：不能只看有没有 parquet（嵌入步失败会留下"实体在、lancedb 缺"的半成品，
+    # 让 local search 查询时 read_parquet 崩、记空答）。要求晚阶段的 community_reports + lancedb 都在。
     out = Path(root) / "output"
-    return out.exists() and bool(list(out.glob("*.parquet")))
+    if not (out / "entities.parquet").exists() or not (out / "community_reports.parquet").exists():
+        return False
+    lancedb = out / "lancedb"
+    return lancedb.exists() and any(lancedb.iterdir())
 
 
 def ensure_index(root, pdf, doc_id, content_lists, reindex):
@@ -205,16 +210,19 @@ def main():
             stats["index_fail"] += 1
             continue
         log(f"\n[{i}/{len(doc_ids)}] doc {doc_id}  {Path(pdf).name}")
-        if already_queried(a.eval_root, doc_id) and not a.requery and not a.reindex:
-            log(f"[{doc_id}] 结果文件已存在，跳过")
-            stats["skipped"] += 1
-            continue
         root = Path(a.runs) / doc_id
+        # 先看索引是否已完整：若否，ensure_index 会（借 LLM 缓存）重建——这种情况旧的空答案已过期，必须重查。
+        was_ready = index_ready(root)
         if not ensure_index(root, pdf, doc_id, a.content_lists, a.reindex):
             log(f"[{doc_id}] !! 建图失败，跳过本篇")
             stats["index_fail"] += 1
             continue
         stats["indexed"] += 1
+        rebuilt = not was_ready          # 刚重建的篇：强制重查，覆盖旧空答
+        if already_queried(a.eval_root, doc_id) and not rebuilt and not a.requery and not a.reindex:
+            log(f"[{doc_id}] 结果已存在且索引完整，跳过查询")
+            stats["skipped"] += 1
+            continue
 
         qs = load_meta_questions(a.docbench, doc_id)
         base_recs, dg_recs = [], []
