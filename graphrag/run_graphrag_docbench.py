@@ -131,12 +131,15 @@ def ensure_index(root, pdf, doc_id, content_lists, reindex):
 
 
 def graphrag_query(root, method, q):
-    r = subprocess.run(["graphrag", "query", "--root", str(root), "--method", method, "--query", q],
+    # GraphRAG 3.x：问题是**位置参数**，不是 --query。用法 `graphrag query --root X --method local "问题"`。
+    r = subprocess.run(["graphrag", "query", "--root", str(root), "--method", method, q],
                        capture_output=True, text=True)
-    ans = parse_answer(r.stdout)
-    if not ans and ("data_inspection" in (r.stderr or "") or "inappropriate" in (r.stderr or "")):
-        return ""  # 内容审查拦截，记空答
-    return ans
+    if r.returncode != 0:
+        # 不再静默返回空：把失败原因打出来（内容审查/认证/参数等），便于定位。
+        err = (r.stderr or r.stdout or "").strip().splitlines()
+        log(f"    !! graphrag query 失败(rc={r.returncode}): {' '.join(err[-3:])[:200]}")
+        return ""
+    return parse_answer(r.stdout)
 
 
 def write_results(eval_root, doc_id, pdf, base_recs, dg_recs):
