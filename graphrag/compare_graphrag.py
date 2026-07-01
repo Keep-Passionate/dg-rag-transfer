@@ -69,36 +69,59 @@ def main():
     raw = json.load(open(a.eval, encoding="utf-8"))
     recs = raw.get("results", raw) if isinstance(raw, dict) else raw
 
-    acc = collections.defaultdict(lambda: [0, 0])   # method -> [correct, total]
-    verdict = {}                                     # (method, key) -> 0/1
+    # method -> type -> [correct, total]；verdict[(method, key)] 供配对 McNemar
+    acc = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 0]))
+    verdict = collections.defaultdict(dict)          # method -> key -> 0/1
+    vtype = {}                                        # key -> type
     for r in recs:
         did = r.get("doc_id")
         if did not in allowed:
             continue
         key = (did, norm(r.get("question")))
-        if gold.get(key) != "meta-data":
+        t = gold.get(key)
+        if t is None:                                # 不在子集金标里
             continue
         try:
             av = int(r.get("accuracy"))
         except Exception:
             continue
         m = r.get("method")
-        acc[m][0] += av
-        acc[m][1] += 1
-        verdict[(m, key)] = av
+        acc[m][t][0] += av
+        acc[m][t][1] += 1
+        acc[m]["__overall__"][0] += av
+        acc[m]["__overall__"][1] += 1
+        verdict[m][key] = av
+        vtype[key] = t
 
-    print("==== GraphRAG 迁移 · 25 篇 meta 子集准确率 (doc_id+题 联合键) ====")
-    for m in (a.base_method, a.dg_method):
-        c, t = acc[m]
-        print(f"  {m:14}: {c}/{t} = {c / t * 100:.1f}%" if t else f"  {m:14}: (无数据)")
+    bm, dm = a.base_method, a.dg_method
+    types = sorted(t for t in set(list(acc[bm]) + list(acc[dm])) if t != "__overall__")
 
-    keys = [k for (mm, k) in verdict if mm == a.dg_method and (a.base_method, k) in verdict]
-    b = sum(1 for k in keys if verdict[(a.base_method, k)] == 1 and verdict[(a.dg_method, k)] == 0)  # base对 dg错
-    c = sum(1 for k in keys if verdict[(a.base_method, k)] == 0 and verdict[(a.dg_method, k)] == 1)  # base错 dg对
-    p = mcnemar_exact(b, c)
-    print(f"\n  配对 n={len(keys)}  dg净增={c - b}  (dg独对={c}, dg独错={b})")
-    print(f"  McNemar 精确检验 p={p:.4g}  {'(显著 p<0.05)' if p < 0.05 else ''}")
-    print("\n  期望信号：dg 准确率明显高于 base、净增为正 → meta 增益在 GraphRAG 上复现（骨干无关）。")
+    def pct(m, t):
+        c, n = acc[m].get(t, [0, 0])
+        return f"{c}/{n}={c / n * 100:.1f}%" if n else "(无)"
+
+    print("==== GraphRAG 迁移 · 25 篇子集 · 分题型 base vs dg 准确率 ====")
+    print(f"  {'题型':<14}{bm:>18}{dm:>18}   Δ")
+    for t in types + ["__overall__"]:
+        bc, bn = acc[bm].get(t, [0, 0])
+        dc, dn = acc[dm].get(t, [0, 0])
+        d = (dc / dn * 100 - bc / bn * 100) if bn and dn else 0.0
+        label = "overall(全部)" if t == "__overall__" else t
+        star = "  ← 只应此行大涨" if t == "meta-data" else ("  ← 非meta应≈0(不拖累)" if t != "__overall__" else "")
+        print(f"  {label:<14}{pct(bm, t):>18}{pct(dm, t):>18}  {d:+5.1f}pp{star}")
+
+    # 配对 McNemar：meta 口径 + overall 口径
+    def mcnemar(only_type=None):
+        keys = [k for k in verdict[dm] if k in verdict[bm] and (only_type is None or vtype.get(k) == only_type)]
+        b = sum(1 for k in keys if verdict[bm][k] == 1 and verdict[dm][k] == 0)
+        c = sum(1 for k in keys if verdict[bm][k] == 0 and verdict[dm][k] == 1)
+        return len(keys), b, c, mcnemar_exact(b, c)
+
+    for label, ot in [("meta-data", "meta-data"), ("overall", None)]:
+        n, b, c, p = mcnemar(ot)
+        sig = "(显著 p<0.05)" if p < 0.05 else ""
+        print(f"\n  [{label}] 配对 n={n}  dg净增={c - b}  (dg独对={c}, dg独错={b})  McNemar p={p:.4g} {sig}")
+    print("\n  期望：meta 行大涨且显著；非 meta 各行 Δ≈0（DG 弃权→恒等回退→不拖累）；overall 只升不降。")
 
 
 if __name__ == "__main__":

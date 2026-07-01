@@ -63,7 +63,8 @@ def log(msg):
     print(msg, flush=True)
 
 
-def load_meta_questions(docbench, doc_id):
+def load_questions(docbench, doc_id, only_meta=True):
+    """only_meta=True 只取 meta-data 题；False 取全部题型（用于 overall/非回归）。"""
     qa = Path(docbench) / doc_id / f"{doc_id}_qa.jsonl"
     out = []
     if not qa.exists():
@@ -76,8 +77,10 @@ def load_meta_questions(docbench, doc_id):
             o = json.loads(line)
         except Exception:
             continue
-        if o.get("type") == "meta-data":
-            out.append({"question": o.get("question", ""), "answer": o.get("answer", "")})
+        t = o.get("type", "")
+        if only_meta and t != "meta-data":
+            continue
+        out.append({"question": o.get("question", ""), "answer": o.get("answer", ""), "type": t})
     return out
 
 
@@ -187,6 +190,8 @@ def main():
     ap.add_argument("--eval-root", default=os.getenv("GRAPHRAG_EVAL", "/root/autodl-tmp/graphrag_eval"))
     ap.add_argument("--reindex", action="store_true")
     ap.add_argument("--requery", action="store_true")
+    ap.add_argument("--all-types", action="store_true",
+                    help="跑全部题型(不只meta)，用于 overall + 非meta非回归；非meta题DG弃权→dg复用base不额外查询")
     a = ap.parse_args()
 
     if a.docs.strip():
@@ -219,27 +224,29 @@ def main():
             continue
         stats["indexed"] += 1
         rebuilt = not was_ready          # 刚重建的篇：强制重查，覆盖旧空答
-        if already_queried(a.eval_root, doc_id) and not rebuilt and not a.requery and not a.reindex:
+        # all-types 会把非 meta 题也补进结果，故此模式下不跳过（需重写全题型结果）
+        if already_queried(a.eval_root, doc_id) and not rebuilt and not a.requery \
+                and not a.reindex and not a.all_types:
             log(f"[{doc_id}] 结果已存在且索引完整，跳过查询")
             stats["skipped"] += 1
             continue
 
-        qs = load_meta_questions(a.docbench, doc_id)
+        qs = load_questions(a.docbench, doc_id, only_meta=not a.all_types)
         base_recs, dg_recs = [], []
         for j, item in enumerate(qs, 1):
-            q, gold = item["question"], item["answer"]
+            q, gold, qtype = item["question"], item["answer"], item.get("type", "")
             stats["meta_q"] += 1
             base = graphrag_query(root, a.method, q, a.response_type)
             aug_q, meta = dg_augmenter.augment(q, pdf)
             if aug_q == q:
-                dg = base
+                dg = base                      # 弃权(含所有非meta题)→恒等回退，dg 复用 base，不额外查询
             else:
                 stats["dg_fire"] += 1
                 dg = graphrag_query(root, a.method, aug_q, a.response_type)
-            base_recs.append({"question": q, "answer": base, "correct_answer": gold})
-            dg_recs.append({"question": q, "answer": dg, "correct_answer": gold,
+            base_recs.append({"question": q, "answer": base, "correct_answer": gold, "type": qtype})
+            dg_recs.append({"question": q, "answer": dg, "correct_answer": gold, "type": qtype,
                             "dg_used": meta.get("dg_used"), "dg_kind": meta.get("dg_kind")})
-            log(f"    Q{j}/{len(qs)} dg_used={meta.get('dg_used')} kind={meta.get('dg_kind')}")
+            log(f"    Q{j}/{len(qs)} [{qtype}] dg_used={meta.get('dg_used')} kind={meta.get('dg_kind')}")
         write_results(a.eval_root, doc_id, pdf, base_recs, dg_recs)
         stats["queried"] += 1
         log(f"[{doc_id}] 已写结果（meta {len(qs)} 题）")
