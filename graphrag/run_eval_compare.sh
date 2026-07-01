@@ -4,6 +4,8 @@
 set -e
 cd "$(dirname "$0")"
 MAN="${1:-top25.json}"
+# 传 --all-docs 则对比全量；否则用 manifest
+if [ "$MAN" = "--all-docs" ]; then CMP_SCOPE="--all-docs"; else CMP_SCOPE="--manifest $MAN"; fi
 
 : "${DG_CORE_DIR:?先 source env.sh}"; : "${GRAPHRAG_EVAL:?先 source env.sh}"
 
@@ -19,4 +21,4 @@ echo "==== 对比：GraphRAG base(原题) vs dg(增强题) · meta 子集 ===="
 python compare_graphrag.py \
     --root "$DOCBENCH_ROOT" \
     --eval "$GRAPHRAG_EVAL/_eval/llm_evaluation_results.json" \
-    --manifest "$MAN"
+    $CMP_SCOPE

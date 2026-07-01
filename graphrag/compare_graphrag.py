@@ -39,19 +39,25 @@ def main():
     ap.add_argument("--root", default=os.getenv("DOCBENCH_ROOT", "/root/autodl-tmp/DocBench_subset"))
     ap.add_argument("--eval", required=True, help="llm_evaluation_results.json 路径")
     ap.add_argument("--manifest", default=str(HERE / "top25.json"))
+    ap.add_argument("--all-docs", action="store_true", help="统计 DocBench_subset 全部文档(全量)")
     ap.add_argument("--base-method", default="graphrag_base")
     ap.add_argument("--dg-method", default="graphrag_dg")
     a = ap.parse_args()
 
-    manifest = json.load(open(a.manifest, encoding="utf-8"))
-    docs = manifest["docs"]
+    if a.all_docs:
+        docs = [{"doc_id": p.name} for p in sorted(Path(a.root).iterdir())
+                if p.is_dir() and (p / f"{p.name}_qa.jsonl").exists()]
+    else:
+        docs = json.load(open(a.manifest, encoding="utf-8"))["docs"]
 
     # 允许的 PDF 名集合 + 金标 (pdf名, 题) -> 题型
     allowed, gold = set(), {}
     for d in docs:
         did = d["doc_id"]
         pdfs = glob.glob(os.path.join(a.root, did, "*.pdf"))
-        pdfname = os.path.basename(pdfs[0]) if pdfs else d["pdf"]
+        pdfname = os.path.basename(pdfs[0]) if pdfs else d.get("pdf")
+        if not pdfname:
+            continue
         allowed.add(pdfname)
         qa = os.path.join(a.root, did, f"{did}_qa.jsonl")
         if not os.path.exists(qa):

@@ -194,9 +194,16 @@ def main():
                     help="跑全部题型(不只meta)，用于 overall + 非meta非回归；非meta题DG弃权→dg复用base不额外查询")
     ap.add_argument("--exclude", default=os.getenv("EXCLUDE_IDS", ""),
                     help="逗号分隔 doc_id，跳过（如内容审查必失败的敏感文档，省得全量跑每次重试白耗时）")
+    ap.add_argument("--all-docs", action="store_true",
+                    help="扫描 DocBench_subset 下全部文档(全量)，忽略 manifest/limit")
     a = ap.parse_args()
 
-    if a.docs.strip():
+    if a.all_docs:
+        base = Path(a.docbench)
+        doc_ids = sorted((p.name for p in base.iterdir()
+                          if p.is_dir() and (p / f"{p.name}_qa.jsonl").exists()),
+                         key=lambda s: int(s) if s.isdigit() else 1 << 30)
+    elif a.docs.strip():
         doc_ids = [d.strip() for d in a.docs.split(",") if d.strip()]
     else:
         man = json.load(open(a.manifest, encoding="utf-8"))
