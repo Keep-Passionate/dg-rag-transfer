@@ -8,8 +8,10 @@ N="${1:-25}"
 if [ "$N" = "50" ]; then MAN=top50.json; else MAN=top25.json; fi
 LOG="/root/autodl-tmp/graphrag_overall_${N}.log"
 
-echo "==== 全题型跑 $N 篇（manifest=$MAN）——弹幕： tail -f $LOG ===="
-python run_graphrag_docbench.py --manifest "$MAN" --method local --all-types 2>&1 | tee "$LOG"
+# 默认跳过 110（内容审查必失败的敏感文档，970K字，每次重试白耗时）；可用 EXCLUDE_IDS 覆盖。
+echo "==== 全题型跑 $N 篇（manifest=$MAN, exclude=${EXCLUDE_IDS:-110}）——弹幕： tail -f $LOG ===="
+python run_graphrag_docbench.py --manifest "$MAN" --method local --all-types \
+    --exclude "${EXCLUDE_IDS:-110}" 2>&1 | tee "$LOG"
 
 echo ""
 bash run_eval_compare.sh "$MAN" 2>&1 | tee -a "$LOG"

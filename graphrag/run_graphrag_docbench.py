@@ -192,6 +192,8 @@ def main():
     ap.add_argument("--requery", action="store_true")
     ap.add_argument("--all-types", action="store_true",
                     help="跑全部题型(不只meta)，用于 overall + 非meta非回归；非meta题DG弃权→dg复用base不额外查询")
+    ap.add_argument("--exclude", default=os.getenv("EXCLUDE_IDS", ""),
+                    help="逗号分隔 doc_id，跳过（如内容审查必失败的敏感文档，省得全量跑每次重试白耗时）")
     a = ap.parse_args()
 
     if a.docs.strip():
@@ -201,6 +203,10 @@ def main():
         doc_ids = [d["doc_id"] for d in man["docs"]]
     if a.limit:
         doc_ids = doc_ids[:a.limit]
+    excl = {s.strip() for s in a.exclude.split(",") if s.strip()}
+    if excl:
+        doc_ids = [d for d in doc_ids if d not in excl]
+        log(f"[exclude] 跳过 {sorted(excl)}")
 
     if not os.getenv("GRAPHRAG_API_KEY"):
         log("!! GRAPHRAG_API_KEY 未设置——请 source env.sh 或 export（=你的百炼 key）")
