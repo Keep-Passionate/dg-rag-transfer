@@ -91,9 +91,17 @@ def write_results(eval_root, doc_id, pdf, base_recs, dg_recs):
               ensure_ascii=False, indent=2)
 
 
-def already_queried(eval_root, doc_id):
+def already_queried(eval_root, doc_id, expect_n):
+    """结果文件存在且题数不少于本次应查题数才算查过——使 --all-types 断点续跑也能正确跳过。"""
     e = Path(eval_root) / doc_id
-    return (e / "qa_results_vanilla_base.json").exists() and (e / "qa_results_vanilla_dg.json").exists()
+    fb = e / "qa_results_vanilla_base.json"
+    fd = e / "qa_results_vanilla_dg.json"
+    if not (fb.exists() and fd.exists()):
+        return False
+    try:
+        return len(json.loads(fb.read_text(encoding="utf-8"))) >= expect_n
+    except Exception:
+        return False
 
 
 def main():
@@ -158,8 +166,9 @@ def main():
         else:
             log(f"[{doc_id}] 索引已存在，跳过")
         rebuilt = not was_ready
-        if already_queried(a.eval_root, doc_id) and not rebuilt and not a.requery and not a.all_types:
-            log(f"[{doc_id}] 结果已存在，跳过查询")
+        qs = load_questions(a.docbench, doc_id, only_meta=not a.all_types)
+        if already_queried(a.eval_root, doc_id, len(qs)) and not rebuilt and not a.requery:
+            log(f"[{doc_id}] 结果已存在（题数齐），跳过查询")
             st["skipped"] += 1
             continue
         try:
@@ -169,7 +178,6 @@ def main():
             st["index_fail"] += 1
             continue
 
-        qs = load_questions(a.docbench, doc_id, only_meta=not a.all_types)
         base_recs, dg_recs = [], []
         for j, item in enumerate(qs, 1):
             q, gold, qt = item["question"], item["answer"], item.get("type", "")
