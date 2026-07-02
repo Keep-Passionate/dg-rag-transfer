@@ -171,10 +171,18 @@ def write_results(eval_root, doc_id, pdf, base_recs, dg_recs):
               ensure_ascii=False, indent=2)
 
 
-def already_queried(eval_root, doc_id):
+def already_queried(eval_root, doc_id, expect_n):
+    """结果文件存在且题数≥本次应查题数才算查过——使 --all-types 断点续跑能正确跳过已完成篇
+    （此前 all_types 模式一律不跳过，重跑 run_full 会把已完成的篇全部重查、白烧钱）。"""
     edir = Path(eval_root) / doc_id
-    return (edir / "qa_results_graphrag_base.json").exists() and \
-           (edir / "qa_results_graphrag_dg.json").exists()
+    fb = edir / "qa_results_graphrag_base.json"
+    fd = edir / "qa_results_graphrag_dg.json"
+    if not (fb.exists() and fd.exists()):
+        return False
+    try:
+        return len(json.loads(fb.read_text(encoding="utf-8"))) >= expect_n
+    except Exception:
+        return False
 
 
 def main():
@@ -237,14 +245,13 @@ def main():
             continue
         stats["indexed"] += 1
         rebuilt = not was_ready          # 刚重建的篇：强制重查，覆盖旧空答
-        # all-types 会把非 meta 题也补进结果，故此模式下不跳过（需重写全题型结果）
-        if already_queried(a.eval_root, doc_id) and not rebuilt and not a.requery \
-                and not a.reindex and not a.all_types:
-            log(f"[{doc_id}] 结果已存在且索引完整，跳过查询")
+        qs = load_questions(a.docbench, doc_id, only_meta=not a.all_types)
+        # 题数齐才跳过（all-types 也适用）：断点续跑只补没跑完的篇，不重查已完成篇
+        if already_queried(a.eval_root, doc_id, len(qs)) and not rebuilt and not a.requery \
+                and not a.reindex:
+            log(f"[{doc_id}] 结果已存在（题数齐），跳过查询")
             stats["skipped"] += 1
             continue
-
-        qs = load_questions(a.docbench, doc_id, only_meta=not a.all_types)
         base_recs, dg_recs = [], []
         for j, item in enumerate(qs, 1):
             q, gold, qtype = item["question"], item["answer"], item.get("type", "")
