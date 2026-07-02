@@ -19,8 +19,10 @@ bash run_vanilla.sh all --all-types      # 全量
 ```
 弹幕：`tail -f /root/autodl-tmp/vanilla_25.log`。索引产物在 `/root/autodl-tmp/vanilla_runs/`，结果在 `/root/autodl-tmp/vanilla_eval/`（与 GraphRAG 的目录隔离）。
 
+**续跑**：已建索引/已出结果的篇自动跳过（meta 模式）。⚠️ `--all-types` 会重写全题型结果，故该模式**不跳过已查篇**——全量+overall 请一次 `nohup` 跑完，中断后重跑会重查烧钱（与 GraphRAG 版同行为）。敏感文档默认 `EXCLUDE_IDS=110,161,187,203,210` 跳过；vanilla 无 LLM 建索引审查风险，可试 `EXCLUDE_IDS=110 bash run_vanilla.sh 25` 纳入更多篇。
+
 ## 环境
-用 `graphrag` conda 环境跑驱动（需 openai/numpy/pymupdf）；评测器用 `EVAL_PY`（rag 环境，依赖 lightrag）。
+用 `graphrag` conda 环境跑驱动（需 openai/numpy/pymupdf/tiktoken；切块 ~600 token/100 重叠走 tiktoken，缺则按字符回退）；评测器用 `EVAL_PY`（rag 环境，依赖 lightrag）。
 key 只从 `DASHSCOPE_API_KEY` 读。百炼 embedding 单批 ≤10（已在 `embed()` 内分批）。
 
 ## 预期
