@@ -106,7 +106,8 @@ def main():
         c, n = acc[m].get(t, [0, 0])
         return f"{c}/{n}={c / n * 100:.1f}%" if n else "(无)"
 
-    print("==== GraphRAG 迁移 · 25 篇子集 · 分题型 base vs dg 准确率 ====")
+    scope = "全量" if a.all_docs else "子集"
+    print(f"==== 迁移对比 [{bm} vs {dm}] · {scope} · 分题型准确率 ====")
     print(f"  {'题型':<14}{bm:>18}{dm:>18}   Δ")
     for t in types + ["__overall__"]:
         bc, bn = acc[bm].get(t, [0, 0])
