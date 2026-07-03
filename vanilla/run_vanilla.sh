@@ -6,9 +6,9 @@ set -eo pipefail
 cd "$(dirname "$0")"
 : "${DASHSCOPE_API_KEY:?先 source ../graphrag/env.sh}"
 export DASHSCOPE_BASE="${DASHSCOPE_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}"
-# vanilla 骨干在线走论文口径的门控 A（自检阈值）；只在本脚本进程内生效，不影响 GraphRAG 的 all-fire 跑
-export DG_GATE="${DG_GATE:-self_check}"
-echo "DG_GATE=$DG_GATE（self_check=在线门控A）"
+# 论文最终口径=无门控两阶段(all-fire, 与 GraphRAG 跑同口径)；如需试自检门控可 DG_GATE=self_check 覆盖
+export DG_GATE="${DG_GATE:-all_fire}"
+echo "DG_GATE=$DG_GATE"
 export VANILLA_EVAL="${VANILLA_EVAL:-/root/autodl-tmp/vanilla_eval}"
 export DOCBENCH_ROOT="${DOCBENCH_ROOT:-/root/autodl-tmp/DocBench_subset}"
 EVAL_PY="${EVAL_PY:-/root/miniconda3/envs/rag/bin/python}"
