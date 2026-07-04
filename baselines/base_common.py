@@ -14,13 +14,30 @@ RESP_HINT = ("Answer with a single short sentence; if the answer is a name, numb
 _client = None
 
 
+def _from_env_file(name):
+    """env 里没有时，直接从主仓 .env 读（免去手动 export，nohup 也不怕丢环境）。"""
+    cands = [os.environ.get("DG_ENV_FILE"), "/root/autodl-tmp/rag-L1/.env",
+             os.path.join(os.getcwd(), ".env")]
+    for p in cands:
+        if p and os.path.exists(p):
+            for ln in open(p, encoding="utf-8", errors="ignore"):
+                ln = ln.strip()
+                if ln.startswith(name + "="):
+                    v = ln.split("=", 1)[1].strip().strip('"').strip("'")
+                    if v:
+                        return v
+    return None
+
+
 def _mk_client():
     from openai import OpenAI
-    key = os.environ.get("LLM_BINDING_API_KEY") or os.environ.get("DASHSCOPE_API_KEY")
-    host = (os.environ.get("LLM_BINDING_HOST")
+    key = (os.environ.get("LLM_BINDING_API_KEY") or os.environ.get("DASHSCOPE_API_KEY")
+           or _from_env_file("LLM_BINDING_API_KEY"))
+    host = (os.environ.get("LLM_BINDING_HOST") or _from_env_file("LLM_BINDING_HOST")
             or "https://dashscope.aliyuncs.com/compatible-mode/v1")
     if not key:
-        raise RuntimeError("LLM_BINDING_API_KEY / DASHSCOPE_API_KEY 未设置")
+        raise RuntimeError("LLM_BINDING_API_KEY 未设置（env 与 .env 都没读到；"
+                           "可设 DG_ENV_FILE 指向主仓 .env）")
     return OpenAI(api_key=key, base_url=host)
 
 
