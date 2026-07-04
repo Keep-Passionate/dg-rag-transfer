@@ -6,6 +6,7 @@
 import argparse
 import os
 import re
+import signal
 
 from base_common import doc_text, iter_docs, llm, rec, result_path, write_results
 
@@ -41,12 +42,21 @@ def _extract_code(txt):
     return (m.group(1) if m else txt).strip()
 
 
-def _run(code, text):
+class _Timeout(Exception):
+    pass
+
+
+def _run(code, text, timeout=10):
+    # PAL 本质=执行生成代码；受限 builtins + signal 超时（防 LLM 生成死循环把整个跑挂住）。
     ns = {"re": re, "__builtins__": _SAFE_BUILTINS}
-    exec(code, ns)                       # PAL 本质=执行生成代码；受限 builtins + 仅本机研究用
-    if "solve" not in ns:
-        return None
-    return ns["solve"](text)
+    old = signal.signal(signal.SIGALRM, lambda *_: (_ for _ in ()).throw(_Timeout()))
+    signal.alarm(timeout)
+    try:
+        exec(code, ns)                   # 仅本机研究用
+        return ns["solve"](text) if "solve" in ns else None
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
 
 
 for folder, pdf, qs in iter_docs(a.root, a.limit, bool(a.meta_only)):
