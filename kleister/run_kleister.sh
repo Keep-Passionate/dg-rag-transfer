@@ -43,9 +43,10 @@ for id in $ids; do
     ENABLE_DG_CORE=false RESULT_NAME=qa_results_kleister_base.json \
       $PY reproduce/query.py "$doc" --working_dir "$WORK/$id" >>"$LOG" 2>&1 || true
   fi
-  # 3) 查询 dg（仅 DG）
+  # 3) 查询 dg（仅 DG + 合同生效日 extensibility 算子 DG_CONTRACT_DATE）
   if [ ! -f "$KL/$id/qa_results_kleister_dg.json" ]; then
-    ENABLE_DG_CORE=true PARSE_OUTPUT_DIR="$PARSE_OUT" RESULT_NAME=qa_results_kleister_dg.json \
+    ENABLE_DG_CORE=true DG_CONTRACT_DATE=true PARSE_OUTPUT_DIR="$PARSE_OUT" \
+      RESULT_NAME=qa_results_kleister_dg.json \
       $PY reproduce/query.py "$doc" --working_dir "$WORK/$id" >>"$LOG" 2>&1 || true
   fi
   echo "[$id] 查询完成" | tee -a "$LOG"
