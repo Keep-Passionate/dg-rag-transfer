@@ -101,12 +101,13 @@ for split in [s.strip() for s in a.splits.split(",") if s.strip()]:
         cols = ins[i].split("\t")
         fname = cols[0].strip() if cols else f"{split}_{i}"
         text = cols[-1] if len(cols) >= 2 else ""
-        # 金标键：`key=value` 空格分隔；同键可多值（如多个 party=）。
-        keys = []
+        # 金标：`key=value` 空格分隔；同键可多值（如多个 party=）；value 用下划线连接。
+        gold = {}                              # key -> [values]（保序）
         for tok in exps[i].split():
             if "=" in tok:
-                keys.append(tok.split("=", 1)[0])
-        keys = list(dict.fromkeys(keys))       # 去重、保序
+                k, v = tok.split("=", 1)
+                gold.setdefault(k, []).append(v.replace("_", " ").strip())
+        keys = list(gold.keys())               # 保序去重
         if not keys:
             continue
         did = f"k_{split.replace('-', '')}_{i:04d}"
@@ -126,6 +127,7 @@ for split in [s.strip() for s in a.splits.split(",") if s.strip()]:
         with open(d / f"{did}_qa.jsonl", "w", encoding="utf-8") as fo:
             for key in keys:
                 q = _q_for(key)
+                ans = ", ".join(dict.fromkeys(gold[key]))   # 多值(如多个 party)去重合并 = 金标
                 fired = bool(parse_fn(q)) if parse_fn else False
                 by_key_total[key] += 1
                 by_key_hit[key] += int(fired)
@@ -134,7 +136,7 @@ for split in [s.strip() for s in a.splits.split(",") if s.strip()]:
                 n_hit += fired
                 fo.write(json.dumps({
                     "question": q,
-                    "answer": "",                        # 金标值单独在 expected.tsv，评测时对齐
+                    "answer": ans,                       # query.py 会把它写进 correct_answer 供评测判分
                     "type": f"kleister:{key}",
                     "dg_parse_hit": fired,
                     "kleister_key": key,
