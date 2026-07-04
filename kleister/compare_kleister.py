@@ -20,16 +20,24 @@ ev = json.load(open(ev_path, encoding="utf-8"))
 recs = ev.get("results", ev) if isinstance(ev, dict) else ev
 norm = lambda q: " ".join((q or "").split())
 
-# (pdf名, 题) -> DG 是否真触发 + 该题的 kleister_key（从 dg 结果文件读）
+# (pdf名, 题) -> DG 是否真触发 + 该题的 kleister_key（key 从 qa.jsonl 读，结果文件不带它）
 fired, keyof = {}, {}
 for d in glob.glob(os.path.join(a.kleister, "k_*", "qa_results_kleister_dg.json")):
     folder = os.path.dirname(d)
     pdf = next((f for f in os.listdir(folder) if f.lower().endswith(".pdf")), None)
     doc = pdf or os.path.basename(folder)      # 无 PDF 时 doc_id 用目录名
+    qa = os.path.join(folder, os.path.basename(folder) + "_qa.jsonl")
+    keymap = {}                                # 题 -> kleister_key（effective_date/party/...）
+    if os.path.exists(qa):
+        for ln in open(qa, encoding="utf-8"):
+            if ln.strip():
+                dd = json.loads(ln)
+                keymap[norm(dd.get("question"))] = dd.get("kleister_key", "")
     for r in json.load(open(d, encoding="utf-8")):
-        k = (doc, norm(r.get("question")))
+        q = norm(r.get("question"))
+        k = (doc, q)
         fired[k] = bool(r.get("dg_used"))
-        keyof[k] = r.get("kleister_key") or r.get("type", "")
+        keyof[k] = keymap.get(q, "")
 
 acc = {}
 for r in recs:
