@@ -29,8 +29,11 @@ git pull --ff-only origin main
 
 /root/miniconda3/envs/rag/bin/pip show pillow >/dev/null 2>&1 || \
   /root/miniconda3/envs/rag/bin/pip install -q pillow
+/root/miniconda3/envs/rag/bin/pip show remotezip >/dev/null 2>&1 || \
+  /root/miniconda3/envs/rag/bin/pip install -q remotezip
 
 nohup /root/miniconda3/envs/rag/bin/python doclaynet/build_doclaynet_metaqa.py \
+  --selective-download \
   --split val \
   --limit-docs 80 \
   --out /root/autodl-tmp/DocLayNet_MetaQA \
@@ -53,6 +56,7 @@ DocLayNet_MetaQA/
 
 ## Notes
 
+- `--selective-download` avoids downloading the full 28GB DocLayNet archive. It reads only `COCO/<split>.json` and the selected PNG pages from the remote zip via HTTP range requests.
 - `--include-zero` includes zero-count element questions. The default omits zero-count element questions but always keeps page count.
 - `--require-any Table,Picture,Formula,Section-header` keeps documents with at least one useful structural element.
 - Generated PDFs are made from DocLayNet page PNGs. The DocLayNet annotations are not written into the PDFs and should not be used as inference input.
