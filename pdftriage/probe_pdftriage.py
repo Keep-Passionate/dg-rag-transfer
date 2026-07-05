@@ -31,8 +31,10 @@ except Exception as e:
     print("!! dg_core.parse 不可用:", e)
     sys.exit(2)
 
-QFIELDS = ("question", "query", "Question", "question_text")
+QFIELDS = ("question", "query", "Question", "question_text", "text")  # PDFTriage/DocInstruct 用 text
 TFIELDS = ("category", "question_type", "type", "q_type", "qtype", "label", "class")
+# 过滤众包退化项（非问题）：N/A、空、太短
+_JUNK = ("n/a", "na", "none", "no figure", "no table", "-")
 
 
 def _field(d, names):
@@ -80,8 +82,8 @@ by_cat_total, by_cat_hit = Counter(), Counter()
 n = hit = 0
 for r in recs:
     q = _field(r, QFIELDS)
-    if not q:
-        continue
+    if not q or str(q).strip().lower() in _JUNK or len(str(q).strip()) < 8:
+        continue                                   # 跳过 N/A 等众包退化项
     cat = str(_field(r, TFIELDS) or "?")
     fired = bool(parse_fn(str(q)))
     n += 1
