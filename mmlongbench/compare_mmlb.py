@@ -1,65 +1,132 @@
-"""MMLongBench-Doc: RAG-Anything ± DG 的 DG触发子集 / 未触发 / overall 对比 + McNemar（零 LLM）。
+"""Compare MMLongBench-Doc RAG-Anything variants after LLM judging.
 
-读主仓 llm_answer_evaluator.py 判分产物 + 各文档的 qa_results_mmlb_dg.json 的 dg_used 标记。
-用法（服务器）：python compare_mmlb.py [--mmlb /root/autodl-tmp/MMLB_subset]
+Expected result files inside each MMLB document directory:
+  qa_results_mmlb_base.json
+  qa_results_mmlb_dg.json
+  qa_results_mmlb_mm.json
+  qa_results_mmlb_dg_mm.json
+
+The evaluator names methods by stripping ``qa_results_`` and ``.json``.
 """
+
+from __future__ import annotations
+
 import argparse
 import glob
 import json
 import os
 from math import comb
+from typing import Callable, Dict, Iterable, List, Tuple
 
-ap = argparse.ArgumentParser()
-ap.add_argument("--mmlb", default="/root/autodl-tmp/MMLB_subset")
-a = ap.parse_args()
-
-ev_path = os.path.join(a.mmlb, "_eval", "llm_evaluation_results.json")
-ev = json.load(open(ev_path, encoding="utf-8"))
-recs = ev.get("results", ev) if isinstance(ev, dict) else ev
-norm = lambda q: " ".join((q or "").split())
-
-# (pdf名, 题) -> DG 是否真触发（从 dg 结果文件的 dg_used 读；doc_id 用同目录 PDF 名，对齐评测器）
-fired = {}
-for d in glob.glob(os.path.join(a.mmlb, "m*", "qa_results_mmlb_dg.json")):
-    folder = os.path.dirname(d)
-    pdf = next((f for f in os.listdir(folder) if f.lower().endswith(".pdf")), None)
-    if not pdf:
-        continue
-    for r in json.load(open(d, encoding="utf-8")):
-        fired[(pdf, norm(r.get("question")))] = bool(r.get("dg_used"))
-
-acc = {}
-for r in recs:
-    key = (r.get("doc_id"), norm(r.get("question")))
-    try:
-        v = int(r.get("accuracy"))
-    except Exception:
-        continue
-    acc.setdefault(r.get("method"), {})[key] = v
+Key = Tuple[str, str]
 
 
-def mcn(b, c):
-    n = b + c
+def norm(text: str) -> str:
+    return " ".join((text or "").split())
+
+
+def mcnemar_p(base_lost: int, method_won: int) -> float:
+    n = base_lost + method_won
     if n == 0:
         return 1.0
-    k = min(b, c)
-    p = sum(comb(n, i) for i in range(k + 1)) / 2 ** n
+    k = min(base_lost, method_won)
+    p = sum(comb(n, i) for i in range(k + 1)) / 2**n
     return min(1.0, 2 * p)
 
 
-bm, dm = "mmlb_base", "mmlb_dg"
-print("==== MMLongBench-Doc · RAG-Anything ± DG ====")
-for label, pred in [("DG触发子集", lambda k: fired.get(k) is True),
-                    ("未触发(应≈0)", lambda k: fired.get(k) is False),
-                    ("overall", lambda k: k in fired)]:
-    keys = [k for k in acc.get(dm, {}) if k in acc.get(bm, {}) and pred(k)]
+def load_eval(path: str) -> Dict[str, Dict[Key, int]]:
+    raw = json.load(open(path, encoding="utf-8"))
+    rows = raw.get("results", raw) if isinstance(raw, dict) else raw
+    out: Dict[str, Dict[Key, int]] = {}
+    for row in rows:
+        method = row.get("method")
+        if not method:
+            continue
+        try:
+            acc = int(row.get("accuracy"))
+        except Exception:
+            continue
+        key = (row.get("doc_id", ""), norm(row.get("question", "")))
+        out.setdefault(method, {})[key] = acc
+    return out
+
+
+def doc_pdf_name(folder: str) -> str:
+    return next((f for f in os.listdir(folder) if f.lower().endswith(".pdf")), os.path.basename(folder))
+
+
+def load_trigger_flags(mmlb: str, filename: str, fields: Iterable[str]) -> Dict[Key, bool]:
+    flags: Dict[Key, bool] = {}
+    for path in glob.glob(os.path.join(mmlb, "m*", filename)):
+        folder = os.path.dirname(path)
+        doc_id = doc_pdf_name(folder)
+        try:
+            rows = json.load(open(path, encoding="utf-8"))
+        except Exception:
+            continue
+        for row in rows:
+            flags[(doc_id, norm(row.get("question", "")))] = any(bool(row.get(field)) for field in fields)
+    return flags
+
+
+def summarize_pair(
+    acc: Dict[str, Dict[Key, int]],
+    base_method: str,
+    method: str,
+    label: str,
+    predicate: Callable[[Key], bool],
+) -> None:
+    keys = [k for k in acc.get(method, {}) if k in acc.get(base_method, {}) and predicate(k)]
     if not keys:
-        print(f"  {label:12}: 无数据")
-        continue
-    cb = sum(acc[bm][k] for k in keys)
-    cd = sum(acc[dm][k] for k in keys)
-    b = sum(1 for k in keys if acc[bm][k] == 1 and acc[dm][k] == 0)
-    c = sum(1 for k in keys if acc[bm][k] == 0 and acc[dm][k] == 1)
-    print(f"  {label:12}: n={len(keys):4d}  base {cb / len(keys) * 100:5.1f}%  "
-          f"dg {cd / len(keys) * 100:5.1f}%  净增{c - b:+d}(独对{c}/独错{b})  McNemar p={mcn(b, c):.4g}")
-print("\n  期望：DG触发子集 dg>base 且净增为正；未触发两列≈相等（零拖累）。")
+        print(f"  {label:<18} n=0")
+        return
+    base_ok = sum(acc[base_method][k] for k in keys)
+    method_ok = sum(acc[method][k] for k in keys)
+    base_lost = sum(1 for k in keys if acc[base_method][k] == 1 and acc[method][k] == 0)
+    method_won = sum(1 for k in keys if acc[base_method][k] == 0 and acc[method][k] == 1)
+    print(
+        f"  {label:<18} n={len(keys):4d}  "
+        f"base {base_ok / len(keys) * 100:5.1f}%  "
+        f"{method} {method_ok / len(keys) * 100:5.1f}%  "
+        f"net {method_won - base_lost:+d} (win {method_won}/loss {base_lost})  "
+        f"McNemar p={mcnemar_p(base_lost, method_won):.4g}"
+    )
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--mmlb", default="/root/autodl-tmp/MMLB_subset")
+    ap.add_argument("--eval", default="")
+    ap.add_argument("--base", default="mmlb_base")
+    ap.add_argument("--methods", default="mmlb_dg,mmlb_mm,mmlb_dg_mm")
+    args = ap.parse_args()
+
+    eval_path = args.eval or os.path.join(args.mmlb, "_eval", "llm_evaluation_results.json")
+    acc = load_eval(eval_path)
+
+    triggers = {
+        "mmlb_dg": load_trigger_flags(args.mmlb, "qa_results_mmlb_dg.json", ["dg_used"]),
+        "mmlb_mm": load_trigger_flags(args.mmlb, "qa_results_mmlb_mm.json", ["mm_ground_used"]),
+        "mmlb_dg_mm": load_trigger_flags(
+            args.mmlb,
+            "qa_results_mmlb_dg_mm.json",
+            ["dg_used", "mm_ground_used"],
+        ),
+    }
+
+    print("==== MMLongBench-Doc: RAG-Anything variants ====")
+    methods: List[str] = [m.strip() for m in args.methods.split(",") if m.strip()]
+    for method in methods:
+        if method not in acc:
+            print(f"\n{method}: no judged records")
+            continue
+        print(f"\n{method} vs {args.base}")
+        summarize_pair(acc, args.base, method, "overall", lambda _k: True)
+        flags = triggers.get(method, {})
+        if flags:
+            summarize_pair(acc, args.base, method, "triggered", lambda k, f=flags: f.get(k) is True)
+            summarize_pair(acc, args.base, method, "not_triggered", lambda k, f=flags: f.get(k) is False)
+
+
+if __name__ == "__main__":
+    main()
