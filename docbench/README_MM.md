@@ -31,6 +31,15 @@ Then run a larger subset:
 bash docbench/run_raganything_mm.sh 25
 ```
 
-DocBench is not primarily visual, so the default is conservative:
-`MM_BROAD_VISUAL_FALLBACK=false`. MMLongBench-Doc should usually use
-`MM_BROAD_VISUAL_FALLBACK=true`.
+The default is conservative and non-overriding:
+`MM_ENABLE_VISUAL_ROUTING=false`, `MM_BROAD_VISUAL_FALLBACK=false`, and
+`MM_FORCE_VLM=false`.
+
+Visual routing is only an opt-in probe. Enable it explicitly when running a
+controlled ablation against a VLM-only baseline:
+
+```bash
+export MM_ENABLE_VISUAL_ROUTING=true
+export MM_ALLOW_RANKED_VISUAL=true
+export MM_FORCE_VLM=false
+```
