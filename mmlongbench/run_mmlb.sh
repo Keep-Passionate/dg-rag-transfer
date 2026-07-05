@@ -8,6 +8,7 @@
 
 set -eo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODE="${1:-smoke}"
 case "$MODE" in
   smoke) N=2 ;;
@@ -104,4 +105,4 @@ echo "==== evaluation (do not run multiple evaluators concurrently) ====" | tee 
   --api-key "$KEY" --base-url "$HOST" 2>&1 | tail -12 | tee -a "$LOG"
 
 echo "==== comparison ====" | tee -a "$LOG"
-"$PY" "$(dirname "$0")/compare_mmlb.py" --mmlb "$MMLB" 2>&1 | tee -a "$LOG"
+"$PY" "$SCRIPT_DIR/compare_mmlb.py" --mmlb "$MMLB" 2>&1 | tee -a "$LOG"
