@@ -3,8 +3,6 @@
 Expected result files inside each MMLB document directory:
   qa_results_mmlb_base.json
   qa_results_mmlb_dg.json
-  qa_results_mmlb_mm.json
-  qa_results_mmlb_dg_mm.json
 
 The evaluator names methods by stripping ``qa_results_`` and ``.json``.
 """
@@ -98,7 +96,7 @@ def main() -> None:
     ap.add_argument("--mmlb", default="/root/autodl-tmp/MMLB_subset")
     ap.add_argument("--eval", default="")
     ap.add_argument("--base", default="mmlb_base")
-    ap.add_argument("--methods", default="mmlb_dg,mmlb_mm,mmlb_dg_mm")
+    ap.add_argument("--methods", default="mmlb_dg")
     args = ap.parse_args()
 
     eval_path = args.eval or os.path.join(args.mmlb, "_eval", "llm_evaluation_results.json")
@@ -106,12 +104,6 @@ def main() -> None:
 
     triggers = {
         "mmlb_dg": load_trigger_flags(args.mmlb, "qa_results_mmlb_dg.json", ["dg_used"]),
-        "mmlb_mm": load_trigger_flags(args.mmlb, "qa_results_mmlb_mm.json", ["mm_ground_used"]),
-        "mmlb_dg_mm": load_trigger_flags(
-            args.mmlb,
-            "qa_results_mmlb_dg_mm.json",
-            ["dg_used", "mm_ground_used"],
-        ),
     }
 
     print("==== MMLongBench-Doc: RAG-Anything variants ====")

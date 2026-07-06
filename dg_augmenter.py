@@ -1,13 +1,9 @@
-"""Backbone-agnostic DG/MM question augmenter for transfer experiments.
+"""Backbone-agnostic DG question augmenter for transfer experiments.
 
 The transfer runners call ``augment(question, pdf_path)`` before handing the
 question to GraphRAG, vanilla RAG, or any other backbone. By default this keeps
 the original DG-RAG behavior: deterministic ``dg_core.ground`` evidence is
 appended when it fires, otherwise the question is returned unchanged.
-
-Set ``ENABLE_MM_GROUND=true`` to also append the portable multimodal grounding
-evidence from ``mm_grounding``. That layer reads MinerU/RAG-Anything
-``content_list`` JSON, but it has no dependency on RAG-Anything internals.
 """
 
 from __future__ import annotations
@@ -24,15 +20,11 @@ def _truthy(name: str, default: str = "false") -> bool:
 def _core_dir() -> str:
     candidates = [
         os.getenv("DG_CORE_DIR", ""),
-        os.getenv("MM_CORE_DIR", ""),
         "/root/autodl-tmp/rag-L1/reproduce",
         r"D:/project/RAG-Anything-main/reproduce",
     ]
     for path in candidates:
         if path and os.path.exists(os.path.join(path, "dg_core.py")):
-            return path
-    for path in candidates:
-        if path and os.path.exists(os.path.join(path, "mm_grounding.py")):
             return path
     return candidates[-1]
 
@@ -72,9 +64,6 @@ def augment(
     meta: Dict[str, Any] = {
         "dg_used": False,
         "dg_kind": "",
-        "mm_ground_used": False,
-        "mm_ground_kind": "",
-        "mm_ground_vlm": False,
     }
 
     try:
@@ -92,25 +81,13 @@ def augment(
             }
         )
 
-    if _truthy("ENABLE_MM_GROUND"):
-        try:
-            import mm_augmenter  # local transfer adapter; imports mm_grounding lazily
-
-            mm_augmented, mm_meta = mm_augmenter.augment(question, pdf_path, content_list_path)
-            if mm_augmented != question:
-                mm_note = mm_augmented[len(question) :].lstrip()
-                augmented = _append_note(augmented, mm_note)
-            meta.update(mm_meta)
-        except Exception as exc:
-            meta.update({"mm_ground_error": str(exc)[:160]})
-
     return augmented, meta
 
 
 if __name__ == "__main__":
     import argparse
 
-    ap = argparse.ArgumentParser(description="Smoke-test the portable DG/MM augmenter.")
+    ap = argparse.ArgumentParser(description="Smoke-test the portable DG augmenter.")
     ap.add_argument("pdf")
     ap.add_argument("question")
     ap.add_argument("--content-list")

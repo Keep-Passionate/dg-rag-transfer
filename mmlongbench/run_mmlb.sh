@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # Run MMLongBench-Doc subsets with RAG-Anything.
 #
-# Default keeps the original experiment: base vs DG only.
-# Set RUN_MM=1 to additionally run MM-only and DG+MM:
-#   RUN_MM=1 bash mmlongbench/run_mmlb.sh smoke
-#   RUN_MM=1 bash mmlongbench/run_mmlb.sh 25
+# Runs the paper-base condition and the portable DG condition only.
 
 set -eo pipefail
 
@@ -22,7 +19,6 @@ MMLB="${MMLB:-/root/autodl-tmp/MMLB_subset}"
 PARSE_OUT="${PARSE_OUT:-/root/autodl-tmp/mmlb_parse}"
 WORK="${WORK:-/root/autodl-tmp/mmlb_storage}"
 PY="${PY:-/root/miniconda3/envs/rag/bin/python}"
-RUN_MM="${RUN_MM:-0}"
 LOG="${LOG:-/root/autodl-tmp/mmlb_${MODE}.log}"
 
 [ -f "$MMLB/mmlb_manifest.json" ] || {
@@ -78,30 +74,10 @@ for id in $ids; do
   fi
 
   run_query "$id" "$pdf" qa_results_mmlb_base.json \
-    ENABLE_DG_CORE=false ENABLE_MM_GROUND=false ENABLE_MODALITY_VLM=false ENABLE_EMR=false
+    ENABLE_DG_CORE=false ENABLE_MODALITY_VLM=false ENABLE_EMR=false
 
   run_query "$id" "$pdf" qa_results_mmlb_dg.json \
-    ENABLE_DG_CORE=true ENABLE_MM_GROUND=false PARSE_OUTPUT_DIR="$PARSE_OUT" OUTPUT_DIR="$PARSE_OUT"
-
-  if [ "$RUN_MM" = "1" ] || [ "$RUN_MM" = "true" ]; then
-    run_query "$id" "$pdf" qa_results_mmlb_mm.json \
-      ENABLE_DG_CORE=false ENABLE_MM_GROUND=true ENABLE_MODALITY_VLM=true ENABLE_EMR=true \
-      PARSE_OUTPUT_DIR="$PARSE_OUT" OUTPUT_DIR="$PARSE_OUT" \
-      MM_ENABLE_VISUAL_ROUTING="${MM_ENABLE_VISUAL_ROUTING:-false}" \
-      MM_ALLOW_RANKED_VISUAL="${MM_ALLOW_RANKED_VISUAL:-false}" \
-      MM_BROAD_VISUAL_FALLBACK="${MM_BROAD_VISUAL_FALLBACK:-false}" \
-      MM_FORCE_VLM="${MM_FORCE_VLM:-false}" \
-      MM_VISUAL_TOPK="${MM_VISUAL_TOPK:-3}" MM_TABLE_TOPK="${MM_TABLE_TOPK:-3}"
-
-    run_query "$id" "$pdf" qa_results_mmlb_dg_mm.json \
-      ENABLE_DG_CORE=true ENABLE_MM_GROUND=true ENABLE_MODALITY_VLM=true ENABLE_EMR=true \
-      PARSE_OUTPUT_DIR="$PARSE_OUT" OUTPUT_DIR="$PARSE_OUT" \
-      MM_ENABLE_VISUAL_ROUTING="${MM_ENABLE_VISUAL_ROUTING:-false}" \
-      MM_ALLOW_RANKED_VISUAL="${MM_ALLOW_RANKED_VISUAL:-false}" \
-      MM_BROAD_VISUAL_FALLBACK="${MM_BROAD_VISUAL_FALLBACK:-false}" \
-      MM_FORCE_VLM="${MM_FORCE_VLM:-false}" \
-      MM_VISUAL_TOPK="${MM_VISUAL_TOPK:-3}" MM_TABLE_TOPK="${MM_TABLE_TOPK:-3}"
-  fi
+    ENABLE_DG_CORE=true PARSE_OUTPUT_DIR="$PARSE_OUT" OUTPUT_DIR="$PARSE_OUT"
 
   echo "[$id] done" | tee -a "$LOG"
 done
